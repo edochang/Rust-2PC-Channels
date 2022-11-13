@@ -48,6 +48,13 @@ pub struct Participant {
     running: Arc<AtomicBool>,
     send_success_prob: f64,
     operation_success_prob: f64,
+    successful_ops: u64,
+    failed_ops: u64,
+    unknown_ops: u64,
+    coord_tx: Sender<ProtocolMessage>,
+    child_rx: Receiver<ProtocolMessage>,
+    total_num_requests: u32,
+
 }
 
 ///
@@ -77,16 +84,25 @@ impl Participant {
         log_path: String,
         r: Arc<AtomicBool>,
         send_success_prob: f64,
-        operation_success_prob: f64) -> Participant {
+        operation_success_prob: f64,
+        coord_tx: Sender<ProtocolMessage>,
+        child_rx: Receiver<ProtocolMessage>,
+        total_num_requests: u32) -> Participant {
 
         Participant {
-            id_str: id_str,
+            id_str: format!("participant_{}", id_str),
             state: ParticipantState::Quiescent,
             log: oplog::OpLog::new(log_path),
             running: r,
             send_success_prob: send_success_prob,
             operation_success_prob: operation_success_prob,
             // TODO
+            coord_tx,
+            child_rx,
+            successful_ops: 0,
+            failed_ops: 0,
+            unknown_ops: 0,
+            total_num_requests,
         }
     }
 
@@ -102,8 +118,16 @@ impl Participant {
         let x: f64 = random();
         if x <= self.send_success_prob {
             // TODO: Send success
+            match self.coord_tx.send(pm) {
+                Ok(()) => (),
+                Err(error) => {
+                    error!("{}::Could not send to coordinator", self.id_str);
+                    panic!("{}::error: {:#?}", self.id_str, error);
+                },
+            }
         } else {
             // TODO: Send fail
+            error!("{}::Fail to send to coordinator", self.id_str)
         }
     }
 
@@ -125,8 +149,17 @@ impl Participant {
         let x: f64 = random();
         if x <= self.operation_success_prob {
             // TODO: Successful operation
+            //info!("{}::x({}), operation_success_prob({})", self.id_str, x, self.operation_success_prob);
+            let mut pm_log = request_option.clone().unwrap();
+            pm_log.mtype = MessageType::ParticipantVoteCommit;
+            self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);
         } else {
             // TODO: Failed operation
+            let mut pm_log = request_option.clone().unwrap();
+            pm_log.mtype = MessageType::ParticipantVoteAbort;
+            self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);
+
+            return false;
         }
 
         true
@@ -139,11 +172,11 @@ impl Participant {
     ///
     pub fn report_status(&mut self) {
         // TODO: Collect actual stats
-        let successful_ops: u64 = 0;
-        let failed_ops: u64 = 0;
-        let unknown_ops: u64 = 0;
+        let successful_ops: u64 = self.successful_ops;
+        let failed_ops: u64 = self.failed_ops;
+        let unknown_ops: u64 = self.unknown_ops;
 
-        println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), successful_ops, failed_ops, unknown_ops);
+        println!("{:16}:\t{}: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), format!("{:?}",RequestStatus::Committed), successful_ops, failed_ops, unknown_ops);
     }
 
     ///
@@ -154,6 +187,29 @@ impl Participant {
         trace!("{}::Waiting for exit signal", self.id_str.clone());
 
         // TODO
+        while self.running.load(Ordering::Relaxed) {
+            let result = match self.child_rx.try_recv() {
+                Ok(protocol_message) => protocol_message,
+                Err(error) => match error {
+                    TryRecvError::Empty => {
+                        warn!("{}::Could not receive from coordinator, error: {:#?}", self.id_str, error);
+                        let pm = ProtocolMessage::instantiate(MessageType::ClientRequest, 0, String::from(""), String::from(""), 0);
+                        pm
+                    },
+                    TryRecvError::IpcError(_) => {
+                        error!("{}::Could not receive from coordinator, error: {:#?}", self.id_str, error);
+                        panic!("{:#?}", error);
+                    },                    
+                },
+            };    
+    
+            if result.mtype == MessageType::CoordinatorExit {
+                break;
+            }
+
+            let millis = Duration::from_millis(1000);
+            thread::sleep(millis);
+        }
 
         trace!("{}::Exiting", self.id_str.clone());
     }
@@ -168,6 +224,60 @@ impl Participant {
         trace!("{}::Beginning protocol", self.id_str.clone());
 
         // TODO
+        let mut num_requests = 0;
+
+        while self.running.load(Ordering::Relaxed) && num_requests < self.total_num_requests {
+            // Receive proposal from coordinator
+            let mut request_option_p1 = match self.child_rx.recv() {
+                Ok(message) => message,
+                Err(error) => {
+                    error!("{}::Could not receive from coordinator", self.id_str);
+                    panic!("{}::error: {:#?}", self.id_str, error);
+                }
+            };
+            self.state = ParticipantState::ReceivedP1;
+
+            if self.perform_operation(&Some(request_option_p1.clone())) {
+                request_option_p1.mtype = MessageType::ParticipantVoteCommit;
+                self.state = ParticipantState::VotedCommit;
+            } else {
+                request_option_p1.mtype = MessageType::ParticipantVoteAbort;
+                self.state = ParticipantState::VotedAbort;
+            }
+
+            let vote_pm = request_option_p1.clone();
+            self.send(vote_pm);
+
+            self.state = ParticipantState::AwaitingGlobalDecision;
+
+            let request_option_p2 = match self.child_rx.recv() {
+                Ok(message) => Some(message),
+                Err(error) => {
+                    error!("{}::Could not receive from coordinator", self.id_str);
+                    panic!("{}::error: {:#?}", self.id_str, error);
+                }
+            };
+
+            let pm = request_option_p2.clone().unwrap();
+            let pm_log = request_option_p2.clone().unwrap();
+            if pm.mtype == MessageType::CoordinatorCommit {
+                self.successful_ops += 1;
+                self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);
+            } else {
+                if pm.mtype == MessageType::CoordinatorAbort {
+                    if pm.txid.contains("unknown") {
+                        self.unknown_ops += 1;
+                    } else {
+                        self.failed_ops += 1;
+                        self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);
+                    }
+                }
+            }
+
+            self.state = ParticipantState::Quiescent;
+
+            num_requests += 1;
+        }
 
         self.wait_for_exit_signal();
         self.report_status();
