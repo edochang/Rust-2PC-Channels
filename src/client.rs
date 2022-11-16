@@ -137,7 +137,7 @@ impl Client {
             },
         };
 
-        self.unknown_ops += 1;
+        //self.unknown_ops += 1;
         trace!("{}::Sent operation #{}", self.id_str.clone(), self.num_requests);
 
         
@@ -165,13 +165,12 @@ impl Client {
         
         if result.mtype == message::MessageType::ClientResultCommit {
             self.successful_ops += 1;
-            self.unknown_ops -= 1;
         }
 
         if result.mtype == message::MessageType::ClientResultAbort {
-            if !result.txid.contains("unknown"){
-                self.failed_ops += 1;
-                self.unknown_ops -= 1;
+            self.failed_ops += 1;
+            if result.txid.contains("unknown"){
+                self.unknown_ops += 1;
             }
         }
 

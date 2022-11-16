@@ -266,7 +266,9 @@ impl Participant {
             } else {
                 if pm.mtype == MessageType::CoordinatorAbort {
                     if pm.txid.contains("unknown") {
+                        self.failed_ops += 1;
                         self.unknown_ops += 1;
+                        self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);
                     } else {
                         self.failed_ops += 1;
                         self.log.append(pm_log.mtype,pm_log.txid, pm_log.senderid, pm_log.opid);

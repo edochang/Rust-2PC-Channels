@@ -166,7 +166,7 @@ impl Coordinator {
                         },
                     };
 
-                    self.unknown_ops += 1;
+                    //self.unknown_ops += 1;
 
                     self.state = CoordinatorState::ReceivedRequest;
 
@@ -243,14 +243,21 @@ impl Coordinator {
                         client_request_p2.mtype = MessageType::ClientResultCommit;
                         self.send_client_message(client_request_p2);
                         self.successful_ops += 1;
-                        self.unknown_ops -= 1;
+                        //self.unknown_ops -= 1;
                     } else {
                         if unknown {
-                            debug!("coord::Send unknown the participants and clients");
+                            debug!("coord::Send unknown to participants and clients");
                             participant_request_p2.mtype = MessageType::CoordinatorAbort;
                             participant_request_p2.txid = format!("{}_unknown", participant_request_p2.txid);
+                            let log_abort = participant_request_p2.clone();
+                            self.log.append(log_abort.mtype, log_abort.txid, log_abort.senderid, log_abort.opid);
                             self.send_participant_message(participant_request_p2);
+                            // Notify client
+                            debug!("coord::Notify clients of abort");
+                            client_request_p2.mtype = MessageType::ClientResultAbort;
                             self.send_client_message(client_request_p2);
+                            self.unknown_ops += 1;
+                            self.failed_ops += 1;
                         } else {
                             // Notify participants to abort
                             debug!("coord::Notify participants to abort");
@@ -264,7 +271,7 @@ impl Coordinator {
                             client_request_p2.mtype = MessageType::ClientResultAbort;
                             self.send_client_message(client_request_p2);
                             self.failed_ops += 1;
-                            self.unknown_ops -= 1;
+                            //self.unknown_ops -= 1;
                         }
                     }
 
