@@ -7,7 +7,7 @@ extern crate log;
 extern crate rand;
 extern crate stderrlog;
 
-use std::collections::HashMap;
+//use std::collections::HashMap;  // not used
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;

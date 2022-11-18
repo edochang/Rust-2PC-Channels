@@ -136,6 +136,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     // TODO
     debug!("coord::Execute run()");
     trace!("coord::run(): coord_log_path: {}", coord_log_path);
+    let now = std::time::Instant::now();
 
     let total_num_requests = opts.num_clients * opts.num_requests;
 
@@ -197,6 +198,9 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
             Err(error) => warn!("{}::Child.wait produced an error: {}", child_handler.0, error),
         }
     }
+
+    let elapsed_time = now.elapsed().as_millis();
+    info!("Total elapsed time of the coordinator and program: {}", elapsed_time);
 }
 
 ///

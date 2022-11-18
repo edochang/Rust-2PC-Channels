@@ -9,7 +9,7 @@ extern crate ipc_channel;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
+//use std::sync::Mutex;  // not used
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
@@ -17,12 +17,12 @@ use std::time::Duration;
 use coordinator::ipc_channel::ipc::IpcSender as Sender;
 use coordinator::ipc_channel::ipc::IpcReceiver as Receiver;
 use coordinator::ipc_channel::ipc::TryRecvError;
-use coordinator::ipc_channel::ipc::channel;
+//use coordinator::ipc_channel::ipc::channel;  // not used
 
 use message;
 use message::MessageType;
 use message::ProtocolMessage;
-use message::RequestStatus;
+//use message::RequestStatus;  // not used
 use oplog;
 
 /// CoordinatorState
@@ -255,6 +255,7 @@ impl Coordinator {
                             // Notify client
                             debug!("coord::Notify clients of abort");
                             client_request_p2.mtype = MessageType::ClientResultAbort;
+                            client_request_p2.txid = format!("{}_unknown", client_request_p2.txid);
                             self.send_client_message(client_request_p2);
                             self.unknown_ops += 1;
                             self.failed_ops += 1;

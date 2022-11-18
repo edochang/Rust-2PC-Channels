@@ -6,11 +6,12 @@ extern crate ipc_channel;
 extern crate log;
 extern crate stderrlog;
 
-use std::{thread, error};
+// use std::{thread, error};  // error not used
+use std::thread;
 use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::collections::HashMap;
+// use std::collections::HashMap;  // not used
 
 use client::ipc_channel::ipc::IpcReceiver as Receiver;
 use client::ipc_channel::ipc::TryRecvError;
