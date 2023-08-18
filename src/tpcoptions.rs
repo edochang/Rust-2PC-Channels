@@ -50,7 +50,7 @@ impl TPCOptions {
         // Set-Up clap
         let matches = App::new("concurrency-2pc")
             .version("0.1.0")
-            .author("Rust Student <student@cs.utexas.edu>")
+            .author("Rust Student <edward.chang@utexas.edu>")
             .about("2PC exercise written in Rust")
             .arg(Arg::with_name("send_success_probability")
                     .short("S")

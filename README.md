@@ -196,3 +196,39 @@ Windows Subsystem for Linux Distributions:  Ubuntu-20.04
 ### Rust Version 
     rustc --version
     rustc 1.64.0 (a55dd71d5 2022-09-19)
+
+## Running The Program
+Run the following in the terminal:
+
+**./target/debug/two_phase_commit Argument Instructions**
+    
+    ./target/debug/two_phase_commit --help
+    concurrency-2pc 0.1.0
+    Rust Student <edward.chang@utexas.edu>
+    2PC exercise written in Rust
+
+    USAGE:
+        two_phase_commit [OPTIONS]
+
+    FLAGS:
+        -h, --help       Prints help information
+        -V, --version    Prints version information
+
+    OPTIONS:
+            --ipc_path <ipc_path>                 Path for IPC socket for communication
+        -l <log_path>                             Specifies path to directory where logs are stored
+        -m <mode>                                 Mode: "run" starts 2PC, "client" starts a client process, "participant"
+                                                starts a participant process, "check" checks logs produced by previous run
+            --num <num>                           Participant / Client number for naming the log files. Ranges from 0 to
+                                                num_clients - 1 or num_participants - 1
+        -c <num_clients>                          Number of clients making requests
+        -p <num_participants>                     Number of participants in protocol
+        -r <num_requests>                         Number of requests made per client
+        -s <operation_success_probability>        Probability participants successfully execute requests
+        -S <send_success_probability>             Probability participants successfully send messages
+        -v <verbosity>                            Output verbosity: 0->No Output, 5->Output Everything
+
+### Build the Program
+Run the following in the terminal:
+
+    cargo build
