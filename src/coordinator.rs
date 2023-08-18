@@ -188,7 +188,7 @@ impl Coordinator {
                     for (_, p_value) in self.participants.iter() {
                         let mut received = false;
                         let now = std::time::Instant::now();
-                        let timeout = 500;
+                        let timeout = 100;
 
                         while self.running.load(Ordering::Relaxed) && !received {
                             if now.elapsed().as_millis() as u64 > timeout {
@@ -221,7 +221,7 @@ impl Coordinator {
                                         },
                                     };
 
-                                    let millis = Duration::from_millis(100);
+                                    let millis = Duration::from_millis(0);
                                     thread::sleep(millis);
                                 }
                             }
