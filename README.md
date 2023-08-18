@@ -200,6 +200,8 @@ Windows Subsystem for Linux Distributions:  Ubuntu-20.04
 ## Running The Program
 Run the following in the terminal:
 
+    ./target/debug/two_phase_commit --ipc_path ./ipc/ -c 4 -p 10 -r 10 -m run
+
 **./target/debug/two_phase_commit Argument Instructions**
     
     ./target/debug/two_phase_commit --help
